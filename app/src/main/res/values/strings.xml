@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">TestCamera</string>
+    <string name="logo_start">Начать</string>
+    <string name="common_exit">Выйти</string>
+    <string name="prepare_top_angle">Максимальный угол верхней полусферы:</string>
+    <string name="prepare_bottom_angle">Максимальный угол нижней полусферы:</string>
+    <string name="common_next">Дальше</string>
+    <string name="result_start">Повторить</string>
+</resources>

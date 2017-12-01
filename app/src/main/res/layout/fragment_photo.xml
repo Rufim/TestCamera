@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="match_parent"
+                android:background="@color/black"
+              android:layout_height="match_parent">
+
+    <SurfaceView android:id="@+id/photo_view"
+                 android:layout_width="match_parent"
+                 android:layout_height="match_parent"/>
+     <android.support.design.widget.FloatingActionButton
+             android:id="@+id/photo_take"
+             android:layout_alignParentEnd="true"
+             android:layout_alignParentBottom="true"
+             android:layout_marginBottom="@dimen/spacing_xlarge"
+             android:layout_marginEnd="@dimen/spacing_xlarge"
+             android:src="@drawable/camera"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"/>
+</RelativeLayout>
