@@ -54,19 +54,18 @@ public class PhotoFragment extends BaseFragment {
         actionButton.setBackgroundTintList(getResources().getColorStateList(R.color.float_action_button));
         ((MainActivity) getActivity()).setOnTiltDegreesChanged(new MainActivity.OnTiltDegreesChanged() {
             @Override
-            public void onTiltDegreesChanged(int degrees) {
+            public void onTiltDegreesChanged(int degrees, boolean lookDown) {
                 if (isAdded()) {
-                    // парвильное положение телефона
                     if (degrees < 0) {
                         degrees += 90;
-                        if ((degrees >= 0 && degrees < topAngle) || (degrees <= 0 && -degrees < bottomAngle)) {
+                        if ((lookDown && degrees < bottomAngle) || (!lookDown && degrees < topAngle)) {
                             actionButton.setEnabled(true);
                         } else {
                             actionButton.setEnabled(false);
                         }
-                    } else { // перевернутый
+                    } else {
                         degrees -= 90;
-                        if ((degrees >= 0 && degrees < bottomAngle) || (degrees <= 0 && -degrees < topAngle)) {
+                        if ((lookDown && degrees < bottomAngle) || (!lookDown && degrees < topAngle)) {
                             actionButton.setEnabled(true);
                         } else {
                             actionButton.setEnabled(false);
@@ -77,7 +76,7 @@ public class PhotoFragment extends BaseFragment {
         });
         holder = photoView.getHolder();
 
-        holder.addCallback(new SurfaceHolder.Callback() {
+      /*  holder.addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
                 try {
@@ -105,7 +104,7 @@ public class PhotoFragment extends BaseFragment {
             public void surfaceDestroyed(SurfaceHolder holder) {
 
             }
-        });
+        });*/
         return rootView;
     }
 
