@@ -6,4 +6,6 @@
     <string name="prepare_bottom_angle">Максимальный угол нижней полусферы:</string>
     <string name="common_next">Дальше</string>
     <string name="result_start">Повторить</string>
+    <string name="photo_dialog_calibrate">Калибровка</string>
+    <string name="photo_dialog_message">Возьмите телефон в вертикальном положении и нажмите ОК</string>
 </resources>

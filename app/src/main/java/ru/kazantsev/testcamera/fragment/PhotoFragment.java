@@ -1,6 +1,8 @@
 package ru.kazantsev.testcamera.fragment;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.hardware.Camera;
@@ -15,6 +17,7 @@ import butterknife.OnClick;
 import net.vrallev.android.cat.Cat;
 import ru.kazantsev.template.fragments.BaseFragment;
 import ru.kazantsev.template.util.FragmentBuilder;
+import ru.kazantsev.template.util.GuiUtils;
 import ru.kazantsev.testcamera.R;
 import ru.kazantsev.testcamera.activity.MainActivity;
 
@@ -45,6 +48,9 @@ public class PhotoFragment extends BaseFragment {
     final int CAMERA_ID = 0;
     final boolean FULL_SCREEN = true;
 
+    int tiltDelta = 0;
+    boolean fixDelta = false;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_photo, container, false);
@@ -54,21 +60,40 @@ public class PhotoFragment extends BaseFragment {
         actionButton.setBackgroundTintList(getResources().getColorStateList(R.color.float_action_button));
         ((MainActivity) getActivity()).setOnTiltDegreesChanged(new MainActivity.OnTiltDegreesChanged() {
             @Override
-            public void onTiltDegreesChanged(int degrees, boolean lookDown) {
+            public void onTiltDegreesChanged(int degrees,int inclination) {
                 if (isAdded()) {
+                    boolean lookDown = false;
                     if (degrees < 0) {
                         degrees += 90;
-                        if ((lookDown && degrees < bottomAngle) || (!lookDown && degrees < topAngle)) {
-                            actionButton.setEnabled(true);
+                        if(!fixDelta) {
+                            tiltDelta = degrees;
                         } else {
-                            actionButton.setEnabled(false);
+                            if(tiltDelta > degrees) {
+                                degrees -= tiltDelta;
+                                inclination += tiltDelta;
+                            }
+                            lookDown = inclination <= 90;
+                            if ((lookDown && degrees <= bottomAngle) || (!lookDown && degrees <= topAngle)) {
+                                actionButton.setEnabled(true);
+                            } else {
+                                actionButton.setEnabled(false);
+                            }
                         }
                     } else {
-                        degrees -= 90;
-                        if ((lookDown && degrees < bottomAngle) || (!lookDown && degrees < topAngle)) {
-                            actionButton.setEnabled(true);
+                        degrees = Math.abs(degrees - 90);
+                        if(!fixDelta) {
+                            tiltDelta = degrees;
                         } else {
-                            actionButton.setEnabled(false);
+                            if (tiltDelta > degrees) {
+                                degrees -= tiltDelta;
+                                inclination += tiltDelta;
+                            }
+                            lookDown = inclination <= 90;
+                            if ((!lookDown && degrees <= topAngle) || (lookDown && degrees <= bottomAngle)) {
+                                actionButton.setEnabled(true);
+                            } else {
+                                actionButton.setEnabled(false);
+                            }
                         }
                     }
                 }
@@ -76,27 +101,31 @@ public class PhotoFragment extends BaseFragment {
         });
         holder = photoView.getHolder();
 
-      /*  holder.addCallback(new SurfaceHolder.Callback() {
+      holder.addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
-                try {
-                    camera.setPreviewDisplay(holder);
-                    camera.startPreview();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if(camera != null) {
+                    try {
+                        camera.setPreviewDisplay(holder);
+                        camera.startPreview();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width,
                                        int height) {
-                camera.stopPreview();
-                setCameraDisplayOrientation(CAMERA_ID);
-                try {
-                    camera.setPreviewDisplay(holder);
-                    camera.startPreview();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                if (camera != null) {
+                    camera.stopPreview();
+                    setCameraDisplayOrientation(CAMERA_ID);
+                    try {
+                        camera.setPreviewDisplay(holder);
+                        camera.startPreview();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
@@ -104,15 +133,40 @@ public class PhotoFragment extends BaseFragment {
             public void surfaceDestroyed(SurfaceHolder holder) {
 
             }
-        });*/
+        });
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext())
+                .setTitle(R.string.photo_dialog_calibrate)
+                .setMessage(R.string.photo_dialog_message)
+                .setCancelable(false)
+                .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        fixDelta = true;
+                        tiltDelta = 0;
+                    }
+                })
+                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        fixDelta = true;
+                    }
+                });
+        builder.show();
+        actionButton.setEnabled(false);
         return rootView;
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        camera = Camera.open(CAMERA_ID);
-        setPreviewSize(FULL_SCREEN);
+        if(camera == null) {
+            try {
+                camera = Camera.open(CAMERA_ID);
+                setPreviewSize(FULL_SCREEN);
+            } catch (RuntimeException ex) {
+                GuiUtils.toast(getContext(), "Сant obtain camera instance");
+            }
+        }
     }
 
     public static int getPictureSizeIndexForHeight(List<Camera.Size> sizeList, int height) {
@@ -131,6 +185,14 @@ public class PhotoFragment extends BaseFragment {
     @Override
     public void onPause() {
         super.onPause();
+        if (camera != null)
+            camera.release();
+        camera = null;
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
         if (camera != null)
             camera.release();
         camera = null;

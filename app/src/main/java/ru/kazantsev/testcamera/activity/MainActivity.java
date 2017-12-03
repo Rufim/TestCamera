@@ -5,7 +5,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import net.vrallev.android.cat.Cat;
 import ru.kazantsev.template.activity.BaseActivity;
@@ -21,9 +20,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private SensorManager mSensorManager;
     private Sensor accelerometer;
     private Sensor magnetometer;
+    private Sensor gravitometer;
 
     public interface OnTiltDegreesChanged {
-        void onTiltDegreesChanged(int degrees, boolean lookDown);
+        void onTiltDegreesChanged(int degrees, int inclination);
     }
 
     OnTiltDegreesChanged onTiltDegreesChanged;
@@ -37,6 +37,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         magnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        gravitometer = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
         initListeners();
     }
 
@@ -78,18 +79,30 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     Lock update = new ReentrantLock();
     Boolean updateGravity = false;
     Boolean updateGeomagnetic = false;
+    boolean haveGrav = false;
+    float[] inclineG = new float[3];
+
     @Override
     public void onSensorChanged(SensorEvent event) {
         if(update.tryLock()) {
             try {
-                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-                    gravity = event.values.clone();
-                    updateGravity = true;
-                }
-
-                if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
-                    geomagnetic = event.values.clone();
-                    updateGeomagnetic = true;
+                switch (event.sensor.getType()) {
+                    case Sensor.TYPE_GRAVITY:
+                        gravity = event.values.clone();
+                        updateGravity = true;
+                        haveGrav = true;
+                        break;
+                    case Sensor.TYPE_ACCELEROMETER:
+                        if (haveGrav) break;    // don't need it, we have better
+                        gravity = event.values.clone();
+                        updateGravity = true;
+                        break;
+                    case Sensor.TYPE_MAGNETIC_FIELD:
+                        geomagnetic = event.values.clone();
+                        updateGeomagnetic = true;
+                        break;
+                    default:
+                        return;
                 }
 
                 if (gravity != null && geomagnetic != null && updateGravity && updateGeomagnetic) {
@@ -99,16 +112,22 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     updateGeomagnetic = false;
                     boolean success = SensorManager.getRotationMatrix(R, I, gravity, geomagnetic);
                     if (success) {
-                        float orientation[] = new float[3];
+                        float orientation[] = new float[9];
                         SensorManager.getOrientation(R, orientation);
                         float azimut = orientation[0]; // orientation contains: azimut, pitch and roll
                         float pitch = orientation[1];
                         float roll = orientation[2];
-                        Cat.i("azimu degrees=" + Math.toDegrees(azimut));
+
+                        inclineG = gravity.clone();
+                        double g = Math.sqrt(Math.pow(inclineG[0],  2) + Math.pow(inclineG[1], 2) + Math.pow(inclineG[2], 2));
+                        float cosZ = (float) (inclineG[2] / g);
+                        int inclination = (int) Math.round(Math.toDegrees(Math.acos(cosZ)));
+                        Cat.i("azimu degrees=" + (int) Math.toDegrees(azimut));
                         Cat.i("pitch degrees= " + (int) Math.toDegrees(pitch));
                         Cat.i("roll degrees=" + (int) Math.toDegrees(roll));
+                        Cat.i("inclination="+ inclination);
                         if (onTiltDegreesChanged != null) {
-                            onTiltDegreesChanged.onTiltDegreesChanged((int) Math.toDegrees(pitch), roll >= 0 && azimut < 0);
+                            onTiltDegreesChanged.onTiltDegreesChanged((int) Math.toDegrees(pitch), inclination);
                         }
                     }
                 }
